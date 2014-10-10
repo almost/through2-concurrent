@@ -20,6 +20,7 @@ Written by Thomas Parslow
 
 [![Build Status](https://travis-ci.org/almost/through2-concurrent.svg)](https://travis-ci.org/almost/through2-concurrent)
 
+
 Install
 -------
 
