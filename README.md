@@ -1,6 +1,8 @@
 through2-concurrent
 ===================
 
+[![NPM](https://nodei.co/npm/through2-concurrent.png?downloads&downloadRank)](https://nodei.co/npm/through2-concurrent/)
+
 A simple way to create a Node.JS Transform stream which processes in
 parallel. You can limit the concurrency (default is 16) and order is
 *not* preserved (so chunks/objects can end up in a different order to
