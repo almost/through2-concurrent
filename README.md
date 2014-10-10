@@ -8,7 +8,7 @@ the order they started in if the transform functions take different
 amounts of time).
 
 Build using [through2](https://github.com/rvagg/through2) and has the
-same API with the exception of an extra `concurrency` option.
+same API with the exception of an extra `maxConcurrency` option.
 
 Non-`objectMode` streams are supported for completeness but I'm not
 sure they'd be useful for anything.
