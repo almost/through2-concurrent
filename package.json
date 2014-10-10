@@ -1,8 +1,8 @@
 {
   "name": "through2-concurrent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Like through2 except runs in parallel with limited concurrency",
-  "main": "through2-concurrency.js",
+  "main": "through2-concurrent.js",
   "scripts": {
     "test": "mocha tests.js"
   },
