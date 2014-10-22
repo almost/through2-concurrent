@@ -92,5 +92,40 @@ describe('through2-concurrent', function () {
       runNextTicks();
       expect(endCalled).to.be(true);
     });
+
+    it('should pass down the stream data added with this.push', function () {
+      var passingThrough = through2Concurrent.obj(
+        {maxConcurrency: 1},
+        function (chunk, enc, callback) {
+          this.push({original: chunk});
+          callback();
+        },function (callback) {
+          this.push({flushed: true});
+        });
+      var out = [];
+      passingThrough.on('data', function (data) {
+        out.push(data);
+      });
+      passingThrough.write("Hello");
+      passingThrough.write("World");
+      passingThrough.end();
+      expect(out).to.eql([{original: "Hello"}, {original: "World"}, {flushed: true}]);
+    });
+
+    it('should pass down the stream data added as arguments to the callback', function () {
+      var passingThrough = through2Concurrent.obj(
+        {maxConcurrency: 1},
+        function (chunk, enc, callback) {
+          callback(null, {original: chunk});
+        });
+      var out = [];
+      passingThrough.on('data', function (data) {
+        out.push(data);
+      });
+      passingThrough.write("Hello");
+      passingThrough.write("World");
+      passingThrough.end();
+      expect(out).to.eql([{original: "Hello"}, {original: "World"}]);
+    });
   });
 });

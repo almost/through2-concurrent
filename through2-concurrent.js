@@ -14,6 +14,7 @@ module.exports = function concurrentThrough (options, transform, flush) {
   maxConcurrency = options.maxConcurrency || 16;
 
   function _transform (message, enc, callback) {           
+    var self = this;
     var callbackCalled = false;
     concurrent++;
     if (concurrent < maxConcurrency) {
@@ -25,11 +26,18 @@ module.exports = function concurrentThrough (options, transform, flush) {
       lastCallback = callback;
     }
 
-    transform(message, enc, function () {
+    transform.call(this, message, enc, function (err) {
       // Ignore multiple calls of the callback (shouldn't ever
       // happen, but just in case)
       if (callbackCalled) return;
       callbackCalled = true;
+
+      if (err) {
+        self.emit('error', err);
+      } else if (arguments.length > 1) {
+        self.push(arguments[1]);
+      }
+      
       concurrent--;
       if (lastCallback) {
         var cb = lastCallback;
@@ -46,7 +54,7 @@ module.exports = function concurrentThrough (options, transform, flush) {
   function _flush (callback) {
     // Ensure that flush isn't called until all transforms are complete 
     if (concurrent === 0) {
-      flush(callback);
+      flush.call(this,callback);
     } else {
       pendingFlush = flush.bind(this, callback);
     }
