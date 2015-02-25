@@ -127,5 +127,33 @@ describe('through2-concurrent', function () {
       passingThrough.end();
       expect(out).to.eql([{original: "Hello"}, {original: "World"}]);
     });
+      
+    describe('without a flush argument', function () {
+      beforeEach(function () {
+        transformCalls = [];
+        flushCalls = [];
+        
+        collectingThrough = through2Concurrent.obj(
+          {maxConcurrency: 4},
+          function (chunk, enc, callback) {
+            transformCalls.push({chunk: chunk, enc: enc, callback: callback});
+          });
+      });
+      
+      it('should wait for everything to complete before emitting "end"', function () {
+        var endCalled = false;
+        collectingThrough.on('end', function () {
+          endCalled = true;
+        });
+        collectingThrough.resume();
+        collectingThrough.write({hello: 'world'});
+        collectingThrough.end();
+        runNextTicks();
+        expect(endCalled).to.be(false);
+        transformCalls[0].callback();
+        runNextTicks();
+        expect(endCalled).to.be(true);
+      });
+    });
   });
 });

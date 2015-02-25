@@ -51,6 +51,14 @@ module.exports = function concurrentThrough (options, transform, flush) {
     });
   }
 
+  // Provide a default implementation of the 'flush' argument
+  // so that the waiting code below can stay simple
+  if (typeof flush !== 'function') {
+    flush = function (callback) {
+      callback();
+    };
+  }
+
   function _flush (callback) {
     // Ensure that flush isn't called until all transforms are complete 
     if (concurrent === 0) {
@@ -60,7 +68,7 @@ module.exports = function concurrentThrough (options, transform, flush) {
     }
   }
   
-  return through2(options, _transform, (typeof flush === 'function') ? _flush : undefined);
+  return through2(options, _transform, _flush);
 };
 
 module.exports.obj = function (options, transform, flush) {
