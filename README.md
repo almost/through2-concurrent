@@ -34,7 +34,7 @@ Examples
 --------
 
 Process lines from a CSV in paralel. The order the results end up in
-the "all" is not deterministic.
+the `all` variable is not deterministic.
 
 ```javascript
 var through2Concurrent = require('through2-concurrent');
