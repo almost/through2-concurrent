@@ -37,6 +37,6 @@
     "underscore": "^1.8.2"
   },
   "dependencies": {
-    "through2": "^0.6.3"
+    "through2": "^2.0.0"
   }
 }
