@@ -49,6 +49,7 @@ fs.createReadStream('data.csv')
       var self = this;
       someThingAsync(chunk, function (newChunk) {
         self.push(newChunk);
+        callback();
       });
   }))
   .on('data', function (data) {
