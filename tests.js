@@ -5,7 +5,7 @@ var _ = require('underscore');
 var oldNextTick = process.nextTick;
 
 describe('through2-concurrent', function () {
-  var nextTickScheduled, collectingThrough, transformCalls, flushCalls;
+  var nextTickScheduled, collectingThrough, transformCalls, flushCalls, finalCalls;
 
   function runNextTicks () {
     var execute = function (arr) {
@@ -38,9 +38,13 @@ describe('through2-concurrent', function () {
     beforeEach(function () {
       transformCalls = [];
       flushCalls = [];
+      finalCalls = [];
 
+      var final = function(callback) {
+        finalCalls.push({callback: callback});
+      };
       collectingThrough = through2Concurrent.obj(
-        {maxConcurrency: 4},
+        {maxConcurrency: 4, final: final},
         function (chunk, enc, callback) {
           transformCalls.push({chunk: chunk, enc: enc, callback: callback});
         },function (callback) {
@@ -67,7 +71,7 @@ describe('through2-concurrent', function () {
       expect(transformCalls.length).to.be(6);
     });
 
-    it('should wait for all transform calls to finish before running flush', function () {
+    it('should wait for all transform calls to finish before running final and flush when processing > concurrency', function (callback) {
       _.times(10, function (i) {
         collectingThrough.write({number: i});
       });
@@ -78,9 +82,75 @@ describe('through2-concurrent', function () {
         runNextTicks();
       });
       expect(transformCalls.length).to.be(1);
+      expect(finalCalls.length).to.be(0);
       expect(flushCalls.length).to.be(0);
       transformCalls[0].callback();
-      expect(flushCalls.length).to.be(1);
+
+      // Ensure that flush is called straight after final even if we let the
+      // event loop progress beforehand but not between the calls
+      setTimeout(function() {
+        expect(finalCalls.length).to.be(1);
+        expect(flushCalls.length).to.be(0);
+        finalCalls[0].callback();
+        expect(finalCalls.length).to.be(1);
+        expect(flushCalls.length).to.be(1);
+        callback();
+      }, 0);
+    });
+
+    it('should wait for all transform calls to finish before running final and flush when processing < concurrency', function (callback) {
+      _.times(3, function (i) {
+        collectingThrough.write({number: i});
+      });
+      collectingThrough.end();
+      runNextTicks();
+      _.times(2, function (i) {
+        transformCalls.pop().callback();
+        runNextTicks();
+      });
+      expect(transformCalls.length).to.be(1);
+      expect(finalCalls.length).to.be(0);
+      expect(flushCalls.length).to.be(0);
+      transformCalls[0].callback();
+      
+      // Ensure that flush is called straight after final even if we let the
+      // event loop progress beforehand but not between the calls
+      setTimeout(function() {
+        expect(finalCalls.length).to.be(1);
+        expect(flushCalls.length).to.be(0);
+        finalCalls[0].callback();
+        expect(finalCalls.length).to.be(1);
+        expect(flushCalls.length).to.be(1);
+        callback();
+      }, 0);
+    });
+
+    it('should wait for everything to complete before emitting "finish"', function (callback) {
+      var finishCalled = false;
+      collectingThrough.on('finish', function () {
+        finishCalled = true;
+      });
+      
+      collectingThrough.resume();
+      collectingThrough.write({hello: 'world'});
+      collectingThrough.write({hello: 'world'});
+      collectingThrough.end();
+      runNextTicks();
+      expect(finishCalled).to.be(false);
+      transformCalls[0].callback();
+      runNextTicks();
+      transformCalls[1].callback();
+      runNextTicks();
+      expect(finishCalled).to.be(false);
+      finalCalls[0].callback();
+
+      // runNextTicks does not set stream to sync=false, causing 'finish' to get stuck
+      // because collectingThrough._writableState.pendingcb will always stay > 0
+      // setImmediate will guarantee processing and possiblity of 'finish' event
+      setImmediate(function() {
+        expect(finishCalled).to.be(true);
+        callback();
+      });
     });
 
     it('should wait for everything to complete before emitting "end"', function () {
@@ -90,10 +160,16 @@ describe('through2-concurrent', function () {
       });
       collectingThrough.resume();
       collectingThrough.write({hello: 'world'});
+      collectingThrough.write({hello: 'world'});
       collectingThrough.end();
       runNextTicks();
       expect(endCalled).to.be(false);
       transformCalls[0].callback();
+      runNextTicks();
+      transformCalls[1].callback();
+      runNextTicks();
+      expect(endCalled).to.be(false);
+      finalCalls[0].callback();
       runNextTicks();
       expect(endCalled).to.be(false);
       flushCalls[0].callback();
@@ -102,8 +178,12 @@ describe('through2-concurrent', function () {
     });
 
     it('should pass down the stream data added with this.push', function () {
+      var final = function(cb) {
+        this.push({finished: true});
+        cb();
+      };
       var passingThrough = through2Concurrent.obj(
-        {maxConcurrency: 1},
+        {maxConcurrency: 1, final: final},
         function (chunk, enc, callback) {
           this.push({original: chunk});
           callback();
@@ -117,7 +197,8 @@ describe('through2-concurrent', function () {
       passingThrough.write("Hello");
       passingThrough.write("World");
       passingThrough.end();
-      expect(out).to.eql([{original: "Hello"}, {original: "World"}, {flushed: true}]);
+      runNextTicks();
+      expect(out).to.eql([{original: "Hello"}, {original: "World"}, {finished: true}, {flushed: true}]);
     });
 
     it('should pass down the stream data added as arguments to the callback', function () {
@@ -136,7 +217,7 @@ describe('through2-concurrent', function () {
       expect(out).to.eql([{original: "Hello"}, {original: "World"}]);
     });
       
-    describe('without a flush argument', function () {
+    describe('without a flush argument or final option', function () {
       beforeEach(function () {
         transformCalls = [];
         flushCalls = [];
@@ -146,6 +227,28 @@ describe('through2-concurrent', function () {
           function (chunk, enc, callback) {
             transformCalls.push({chunk: chunk, enc: enc, callback: callback});
           });
+      });
+      
+      it('should wait for everything to complete before emitting "finish"', function (callback) {
+        var finishCalled = false;
+        collectingThrough.on('finish', function () {
+          finishCalled = true;
+        });
+        
+        collectingThrough.resume();
+        collectingThrough.write({hello: 'world'});
+        collectingThrough.end();
+        runNextTicks();
+        expect(finishCalled).to.be(false);
+        transformCalls[0].callback();
+  
+        // runNextTicks does not progress ticks and set stream to sync=false, causing
+        // 'finish' to never fire because collectingThrough._writableState.pendingcb
+        // will always stay > 0 setImmediate will guarantee processing of 'finish' event
+        setImmediate(function() {
+          expect(finishCalled).to.be(true);
+          callback();
+        });
       });
       
       it('should wait for everything to complete before emitting "end"', function () {
