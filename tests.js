@@ -4,13 +4,14 @@ var _ = require('underscore');
 
 var oldNextTick = process.nextTick;
 
-
 describe('through2-concurrent', function () {
   var nextTickScheduled, collectingThrough, transformCalls, flushCalls;
 
   function runNextTicks () {
-    var execute = function (fn) {
-        fn();
+    var execute = function (arr) {
+        var fn = arr[0];
+        var args = arr[1];
+        fn.apply(this, args);
     };
     while (nextTickScheduled.length) {
       var fns = nextTickScheduled;
@@ -22,7 +23,14 @@ describe('through2-concurrent', function () {
   beforeEach(function () {
     nextTickScheduled = [];
     process.nextTick = function (fn) {
-      nextTickScheduled.push(fn);
+      var exec = [fn, []];
+
+      if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+          exec[1].push(arguments[i]);
+        }
+      }
+      nextTickScheduled.push(exec);
     };
   });
 
