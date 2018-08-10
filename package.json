@@ -6,7 +6,7 @@
   "files": [
     "through2-concurrent.js"
   ],
-   "scripts": {
+  "scripts": {
     "test": "mocha tests.js"
   },
   "repository": {
