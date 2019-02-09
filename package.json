@@ -9,6 +9,9 @@
   "scripts": {
     "test": "mocha tests.js"
   },
+  "engines": {
+    "node": ">=8"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/almost/through2-concurrent"
