@@ -33,7 +33,7 @@ npm install --save through2-concurrent
 Examples
 --------
 
-Process lines from a CSV in paralel. The order the results end up in
+Process lines from a CSV in parallel. The order the results end up in
 the `all` variable is not deterministic.
 
 ```javascript
