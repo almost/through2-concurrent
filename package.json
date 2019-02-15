@@ -9,6 +9,7 @@
   "scripts": {
     "test": "mocha tests.js"
   },
+
    "engines": {
     "node": ">=8"
   },
@@ -36,7 +37,7 @@
   },
   "devDependencies": {
     "expect.js": "^0.3.1",
-    "mocha": "^2.2.1",
+    "mocha": "^5.2.0",
     "underscore": "^1.8.2"
   },
   "dependencies": {
