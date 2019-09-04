@@ -6,6 +6,15 @@ var through2 = require('through2');
 function cbNoop (cb) {
   cb();
 }
+function removeFirst(arr, item) {
+  arr.some((v, index) => {
+    if (v === item) {
+      arr.splice(index, 1);
+      return true;
+    }
+    return false;
+  });
+}
 
 module.exports = function concurrentThrough (options, transform, flush) {
   var concurrent = 0, lastCallback = null, pendingFinish = null;
@@ -17,6 +26,59 @@ module.exports = function concurrentThrough (options, transform, flush) {
   }
 
   var maxConcurrency = options.maxConcurrency || 16;
+
+  if (options.preserveOrder) {
+    const sendArr = [];
+    const doFinal = options.final || cbNoop;
+    options.final = function(finalCb) {
+      Promise.all(sendArr).then(() => {
+        process.nextTick(() => {
+          doFinal.call(this, finalCb);
+        })
+      });
+    };
+
+    const fnFlush = function(flushCb) {
+      if (flush) {
+        flush.call(this, flushCb);
+      } else {
+        flushCb();
+      }
+    };
+
+    const fnTransform = async function(data, encoding, callback) {
+      const sendP = new Promise((resolve, reject) => {
+        transform.call(this, data, encoding, (err, sendData) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(sendData);
+          }
+        });
+      });
+      sendArr.push(sendP);
+
+      // throttle
+      if (sendArr.length >= maxConcurrency) {
+        await Promise.all(sendArr.slice());
+        const sendData = await sendP;
+
+        removeFirst(sendArr, sendP);
+        callback(null, sendData);
+        return;
+      }
+
+      process.nextTick(() => {
+        callback();
+      });
+      await Promise.all(sendArr.slice());
+      const sendData = await sendP;
+
+      removeFirst(sendArr, sendP);
+      this.push(sendData);
+    };
+    return through2(options, fnTransform, fnFlush);
+  }
 
   function _transform (message, enc, callback) {
     var self = this;
