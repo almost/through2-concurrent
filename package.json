@@ -37,10 +37,10 @@
   },
   "devDependencies": {
     "expect.js": "^0.3.1",
-    "mocha": "^5.2.0",
+    "mocha": "^8.0.0",
     "underscore": "^1.8.2"
   },
   "dependencies": {
-    "through2": "^3.0.0"
+    "through2": "^4.0.0"
   }
 }
